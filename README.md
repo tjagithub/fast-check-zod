@@ -40,10 +40,13 @@ zodArbitrary(schema, {
   maxDepth: 3,
   maxExtraKeys: 3, // extra keys for looseObject / catchall
   maxFilterAttempts: 1000, // rejected values in a row before a filtered schema throws
+  stringUnit: "grapheme-ascii", // or "grapheme" / "binary" for full Unicode, as in fc.string()
 });
 ```
 
-Use `overrides` for `z.custom()`, `z.instanceof()`, and refinements that random values rarely pass.
+Use `overrides` for `z.custom()`, `z.instanceof()`, and refinements that random values rarely pass. Overrides also match copies made by `.meta()`, `.describe()` and `.clone()`, because those share the schema definition. A schema changed by a check, such as `.min(3)`, does not match.
+
+zod 4.6 measures string length in Unicode code points. With `stringUnit: "binary"`, a string for `z.string().max(4)` can be 8 UTF-16 units long and still be valid.
 
 ## Limits
 
@@ -54,7 +57,7 @@ Use `overrides` for `z.custom()`, `z.instanceof()`, and refinements that random 
 
 ## Testing
 
-- `bun test` runs the suites.
+- `bun test` runs the suites. CI (`.github/workflows/ci.yml`) runs the typecheck, the tests and both coverage checks. `fuzz.yml` runs 20,000 random schemas every night.
 - `bun run coverage` checks 100% line and function coverage. Bun writes no branch records (`BRDA`) to LCOV.
 - `bun run coverage:branches` runs the same files under vitest with V8 coverage (`bun:test` is aliased to `vitest`). It requires 100% of statements, branches, functions and lines.
 - `tests/fuzz.test.ts` builds random satisfiable schemas (`tests/support/`) and checks that every generated value passes `safeParse`. It runs 300 schemas by default; set `FUZZ_RUNS=5000` for a longer search. Counterexamples print as `z.…` code.
