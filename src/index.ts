@@ -1,11 +1,11 @@
 import fc from "fast-check";
 import * as core from "zod/v4/core";
-import { Capped, Deferred, Depth } from "./depth.ts";
-import { Bounded } from "./filter.ts";
-import { bigintArb, dateArb, numberArb } from "./numbers.ts";
-import { type StringUnit, stringArb } from "./strings.ts";
-import type { Built } from "./types.ts";
-import { ABSENT, assign, bounds, checkDefs, type Def, describe, isPlainObject, isValid, omittable, type Schema, type SchemaType, unsupported } from "./util.ts";
+import { Capped, Deferred, Depth } from "./depth.js";
+import { Bounded } from "./filter.js";
+import { bigintArb, dateArb, numberArb } from "./numbers.js";
+import { type StringUnit, stringArb } from "./strings.js";
+import type { Built } from "./types.js";
+import { ABSENT, assign, bounds, checkDefs, type Def, describe, isPlainObject, isValid, omittable, type Schema, type SchemaType, unsupported } from "./util.js";
 
 type Overrides = Map<Schema, fc.Arbitrary<unknown>> | Iterable<readonly [Schema, fc.Arbitrary<unknown>]>;
 

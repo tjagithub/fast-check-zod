@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { regexes } from "zod/v4/core";
-import type { Built } from "./types.ts";
+import type { Built } from "./types.js";
 
 type Def = Record<string, any>;
 
@@ -8,7 +8,10 @@ const AFFIXES = new Set(["starts_with", "ends_with", "includes", "lowercase", "u
 const EMOJI = ["😀", "🎉", "🚀", "❤️", "👍", "🔥", "🌍", "🇫🇷", "1️⃣", "🧪"];
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-const b64url = (s: string) => Buffer.from(s).toString("base64url");
+// btoa and TextEncoder work in Node, Bun, Deno and browsers, unlike Buffer.
+const base64 = (bytes: Uint8Array) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
+const base64url = (bytes: Uint8Array) => base64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64url = (s: string) => base64url(new TextEncoder().encode(s));
 const digits = (min: number, max: number) =>
   fc.array(fc.integer({ min: 0, max: 9 }), { minLength: min, maxLength: max }).map((d) => d.join(""));
 
@@ -61,9 +64,9 @@ function formatArb(d: Def): fc.Arbitrary<string> {
       return fc.tuple(protocol, host, fc.webPath()).map(([p, h, path]) => `${p}://${h}${path}`);
     }
     case "base64":
-      return fc.uint8Array({ maxLength: 48 }).map((b) => Buffer.from(b).toString("base64"));
+      return fc.uint8Array({ maxLength: 48 }).map(base64);
     case "base64url":
-      return fc.uint8Array({ maxLength: 48 }).map((b) => Buffer.from(b).toString("base64url"));
+      return fc.uint8Array({ maxLength: 48 }).map(base64url);
     case "emoji":
       return fc.array(fc.constantFrom(...EMOJI), { minLength: 1, maxLength: 5 }).map((e) => e.join(""));
     case "hostname":
@@ -85,7 +88,7 @@ function formatArb(d: Def): fc.Arbitrary<string> {
       const header = b64url(JSON.stringify({ alg: d.alg ?? "HS256", typ: "JWT" }));
       return fc
         .tuple(fc.dictionary(fc.string(), fc.jsonValue()), fc.uint8Array({ minLength: 1, maxLength: 32 }))
-        .map(([payload, sig]) => `${header}.${b64url(JSON.stringify(payload))}.${Buffer.from(sig).toString("base64url")}`);
+        .map(([payload, sig]) => `${header}.${b64url(JSON.stringify(payload))}.${base64url(sig)}`);
     }
     default:
       return fromPattern(d.pattern);

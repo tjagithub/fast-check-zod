@@ -1,11 +1,15 @@
-# fast-check-zod
+# @tjakit/fast-check-zod
+
+```sh
+npm install --save-dev @tjakit/fast-check-zod fast-check zod
+```
 
 Make [fast-check](https://fast-check.dev) arbitraries from [zod](https://zod.dev) 4 schemas.
 
 ```ts
 import fc from "fast-check";
 import { z } from "zod";
-import { zodArbitrary, zodOutputArbitrary } from "fast-check-zod";
+import { zodArbitrary, zodOutputArbitrary } from "@tjakit/fast-check-zod";
 
 const User = z.object({
   id: z.uuid(),
@@ -57,7 +61,12 @@ zod 4.6 measures string length in Unicode code points. With `stringUnit: "binary
 
 ## Testing
 
-- `bun test` runs the suites. CI (`.github/workflows/ci.yml`) runs the typecheck, the tests and both coverage checks. `fuzz.yml` runs 20,000 random schemas every night.
+- `bun test` runs the suites. CI (`.github/workflows/ci.yml`) runs the typecheck, the tests, both coverage checks and the build. `fuzz.yml` runs 20,000 random schemas when `src/`, the fuzz test or the dependencies change, or when started by hand.
+- `bun run build` writes `dist/`: `bun build` bundles the ESM JavaScript, and `tsc -p tsconfig.build.json` writes the `.d.ts` files.
+
+## Releasing
+
+Bump `version` in `package.json` and push to `main`. `publish.yml` runs the checks and a 5,000-schema fuzz search, publishes with npm trusted publishing and provenance, then tags `v<version>`. It does nothing when npm already has that version.
 - `bun run coverage` checks 100% line and function coverage. Bun writes no branch records (`BRDA`) to LCOV.
 - `bun run coverage:branches` runs the same files under vitest with V8 coverage (`bun:test` is aliased to `vitest`). It requires 100% of statements, branches, functions and lines.
 - `tests/fuzz.test.ts` builds random satisfiable schemas (`tests/support/`) and checks that every generated value passes `safeParse`. It runs 300 schemas by default; set `FUZZ_RUNS=5000` for a longer search. Counterexamples print as `z.…` code.

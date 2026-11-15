@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import type { Built } from "./types.ts";
+import type { Built } from "./types.js";
 
 type Def = Record<string, any>;
 

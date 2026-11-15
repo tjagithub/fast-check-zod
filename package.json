@@ -1,10 +1,32 @@
 {
-  "name": "fast-check-zod",
-  "module": "src/index.ts",
-  "exports": "./src/index.ts",
+  "name": "@tjakit/fast-check-zod",
+  "version": "0.1.0",
+  "description": "fast-check arbitraries from zod 4 schemas",
+  "keywords": ["zod", "fast-check", "property-based-testing", "arbitrary", "fuzzing", "testing"],
+  "license": "MIT",
+  "author": "TJ Appleby",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tjagithub/fast-check-zod.git"
+  },
+  "homepage": "https://github.com/tjagithub/fast-check-zod#readme",
+  "bugs": "https://github.com/tjagithub/fast-check-zod/issues",
   "type": "module",
-  "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
+    "build": "rm -rf dist && bun build src/index.ts --outdir dist --target node --format esm --packages external && tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build",
     "typecheck": "bun check",
     "test": "bun test",
     "coverage": "bun test --coverage",
@@ -14,11 +36,11 @@
     "@types/bun": "latest",
     "@vitest/coverage-v8": "^5.1.0",
     "fast-check": "^4.10.2",
+    "typescript": "^7.0.2",
     "vitest": "^5.1.0",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
-    "typescript": "^7",
     "fast-check": "^4.10.2",
     "zod": "^4.6.7"
   }
