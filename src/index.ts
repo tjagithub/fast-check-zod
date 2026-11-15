@@ -3,14 +3,14 @@ import * as core from "zod/v4/core";
 import { Capped, Deferred, Depth } from "./depth.ts";
 import { Bounded } from "./filter.ts";
 import { bigintArb, dateArb, numberArb } from "./numbers.ts";
-import { stringArb } from "./strings.ts";
+import { type StringUnit, stringArb } from "./strings.ts";
 import type { Built } from "./types.ts";
 import { ABSENT, assign, bounds, checkDefs, type Def, describe, isPlainObject, isValid, omittable, type Schema, type SchemaType, unsupported } from "./util.ts";
 
 type Overrides = Map<Schema, fc.Arbitrary<unknown>> | Iterable<readonly [Schema, fc.Arbitrary<unknown>]>;
 
 export interface ZodArbitraryOptions {
-  /** Arbitraries to use for specific schema instances, e.g. for z.custom() or z.instanceof(). */
+  /** Arbitraries for specific schemas, e.g. z.custom() or z.instanceof(); copies made by .meta() or .describe() match too. */
   overrides?: Overrides;
   /** Maximum number of extra keys for loose objects and catchalls. Default: 3. */
   maxExtraKeys?: number;
@@ -18,7 +18,11 @@ export interface ZodArbitraryOptions {
   maxDepth?: number;
   /** Rejected values in a row before a filtered schema throws instead of looping forever. Default: 1000. */
   maxFilterAttempts?: number;
+  /** Characters for plain strings, as in fc.string(); "grapheme" or "binary" add full Unicode. Default: "grapheme-ascii". */
+  stringUnit?: StringUnit;
 }
+
+export type { StringUnit };
 
 /** Compile error for schemas whose input type is `never`, such as z.intersection(z.string(), z.number()). */
 type Satisfiable<T extends Schema> = [core.input<T>] extends [never]
@@ -39,23 +43,26 @@ export function zodOutputArbitrary<T extends Schema>(schema: T & Satisfiable<T>,
 }
 
 class Builder {
-  private readonly overrides: Map<Schema, fc.Arbitrary<unknown>>;
+  // Keyed by def: .meta(), .describe() and .clone() copy the schema but share its def.
+  private readonly overrides = new Map<object, fc.Arbitrary<unknown>>();
   private readonly cache = new Map<Schema, fc.Arbitrary<unknown>>();
   private readonly building = new Set<Schema>();
   private readonly depth: Depth;
   private readonly maxExtraKeys: number;
   private readonly maxFilterAttempts: number;
+  private readonly unit: StringUnit;
 
   constructor(options: ZodArbitraryOptions) {
-    this.overrides = new Map(options.overrides ?? []);
+    for (const [schema, arb] of options.overrides ?? []) this.overrides.set(schema._zod.def, arb);
     this.maxExtraKeys = options.maxExtraKeys ?? 3;
     this.depth = new Depth(options.maxDepth ?? 3);
     this.maxFilterAttempts = options.maxFilterAttempts ?? 1000;
+    this.unit = options.stringUnit ?? "grapheme-ascii";
   }
 
   build(schema: Schema): fc.Arbitrary<unknown> {
     if (!schema?._zod) throw new TypeError("fast-check-zod: expected a zod 4 schema (zod, zod/mini or zod/v4/core); zod/v3 is not supported");
-    const found = this.overrides.get(schema) ?? this.cache.get(schema);
+    const found = this.overrides.get(schema._zod.def) ?? this.cache.get(schema);
     if (found) return found;
     if (this.building.has(schema)) return new Deferred(() => this.cache.get(schema)!, this.depth);
     this.building.add(schema);
@@ -98,7 +105,7 @@ class Builder {
     const type = def.type as SchemaType;
     switch (type) {
       case "string":
-        return stringArb(defs);
+        return stringArb(defs, this.unit);
       case "number":
       case "int":
         return numberArb(defs);
@@ -116,7 +123,7 @@ class Builder {
       case "nan":
         return ok(fc.constant(Number.NaN));
       case "symbol":
-        return ok(fc.string().map((s) => Symbol(s)));
+        return ok(fc.string({ unit: this.unit }).map((s) => Symbol(s)));
       case "any":
       case "unknown":
         return ok(fc.anything());
@@ -223,7 +230,7 @@ class Builder {
     });
     const catchall: Schema | undefined = def.catchall;
     if (catchall && catchall._zod.def.type !== "never") {
-      const key = fc.string().filter((k) => !Object.hasOwn(shape, k));
+      const key = fc.string({ unit: this.unit }).filter((k) => !Object.hasOwn(shape, k));
       const extra = this.capped(
         fc.dictionary(key, this.build(catchall), { maxKeys: this.maxExtraKeys, depthIdentifier: this.depth.identifier }),
         fc.constant({}),

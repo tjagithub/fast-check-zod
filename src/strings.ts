@@ -92,7 +92,13 @@ function formatArb(d: Def): fc.Arbitrary<string> {
   }
 }
 
-export function stringArb(defs: Def[]): Built {
+export type StringUnit = NonNullable<fc.StringConstraints["unit"]>;
+
+// zod 4.6 measures strings in code points; these units emit one code point per character.
+const CODE_POINT_UNITS: unknown[] = ["grapheme-ascii", "binary-ascii", "binary"];
+const codePoints = (s: string) => [...s].length;
+
+export function stringArb(defs: Def[], unit: StringUnit = "grapheme-ascii"): Built {
   let min = 0;
   let max: number | undefined;
   let exact = true;
@@ -121,15 +127,19 @@ export function stringArb(defs: Def[]): Built {
 
   if (formats.length > 0) return { arb: formatArb(formats[0]!), exact: false };
 
-  const fixed = prefix.length + suffix.length + includes.reduce((n, s) => n + s.length, 0);
+  const fixed = codePoints(prefix) + codePoints(suffix) + includes.reduce((n, s) => n + codePoints(s), 0);
+  // A grapheme can hold several code points, so grapheme lengths need the schema check.
+  if (!CODE_POINT_UNITS.includes(unit) && (min > 0 || max !== undefined)) exact = false;
   const core = fc.string({
+    unit,
     minLength: Math.max(0, min - fixed),
     maxLength: max === undefined ? undefined : Math.max(0, max - fixed),
   });
   let arb: fc.Arbitrary<string> = includes.length
     ? fc.tuple(core, fc.nat()).map(([s, at]) => {
-        const i = at % (s.length + 1);
-        return s.slice(0, i) + includes.join("") + s.slice(i);
+        const chars = [...s];
+        chars.splice(at % (chars.length + 1), 0, includes.join(""));
+        return chars.join("");
       })
     : core;
   if (prefix || suffix) arb = arb.map((s) => prefix + s + suffix);
