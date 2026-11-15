@@ -1,8 +1,12 @@
 name: Fuzz
 
+# The lockfile pins zod and fast-check, so a long run only finds something new when code or dependencies change.
 on:
-  schedule:
-    - cron: "17 3 * * *"
+  push:
+    branches: [main]
+    paths: [src/**, tests/support/**, tests/fuzz.test.ts, package.json, bun.lock]
+  pull_request:
+    paths: [src/**, tests/support/**, tests/fuzz.test.ts, package.json, bun.lock]
   workflow_dispatch:
     inputs:
       runs:
@@ -11,6 +15,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   fuzz:
