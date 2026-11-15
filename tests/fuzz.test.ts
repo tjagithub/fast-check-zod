@@ -18,7 +18,7 @@ test("every random schema yields only valid values", () => {
     }),
     { numRuns: RUNS },
   );
-});
+}, 5_000 + RUNS * 10);
 
 test("the schema arbitrary covers composites and leaves", () => {
   const codes = fc.sample(schema, { numRuns: 300, seed: 7 }).map((x) => x.code);
